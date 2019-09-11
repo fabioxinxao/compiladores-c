@@ -57,13 +57,13 @@ Str_token simbol[30];
 
 
 //main begin
-int main(int argc, char **argv){
+int main(int argc, char *argv[]){
     Str_token token;
     FILE *arq;
     
 if(argc > 1)
 	{
-		if (!(arq=fopen(argv[1],"rt")))
+		if (!(arq=fopen(argv[1],"r")))
 		{
 			printf("Arquivo nao encontrado.\n");
 			exit(1);
@@ -83,7 +83,10 @@ if(argc > 1)
 
 
 Str_token scanner(FILE *arq) {
-	int i=0,estado=0,aceito=0;
+	int i=0;
+	int estado=0;
+	int aceito=0;
+	int column=0;
 	Str_token vet;
 	static char lookup = ' ';
 	
@@ -354,8 +357,73 @@ Str_token scanner(FILE *arq) {
 			}
 		}//fim if de palavra reservada char
 		//comecar tratamento de /
-		
-		
+		else if (lookup=='/')//pode ser comentario ou divisao
+		{	
+			lookup=getc(arq);
+			if(lookup=='/')
+			{//eh um comentario de linha
+				do
+				{
+					lookup=getc(arq);
+					column++;
+					if(lookup=='\n')//descarta tudo ate achar o \n
+					{
+						line++;
+						break;
+					}
+					else if(lookup==EOF)//se chegou ao fim do arquivo, pode retornar sem erro
+					{
+						printf("chegou ao fim de arquivo com um comentario");
+						exit(1);
+					}
+				}while(lookup!=EOF);
+			}
+			else if(lookup=='*')//eh um comentario multi linha
+			{
+				do
+				{
+					if(lookup=='*')
+					{
+						lookup=getc(arq);
+						if(lookup='/')
+						{
+							line++
+							break;
+						}
+						else if(lookup==EOF)
+						{
+							printf("Chegou ao fim de arquivo em um comentario");
+							fclose(arq);
+							exit(1);
+						}
+					}
+					else if(lookup==EOF)
+					{
+							printf("Chegou ao fim de arquivo em um comentario");
+							fclose(arq);
+							exit(1);
+					}
+					else
+					{
+						lookup=getc(arq);
+						column++;	
+					}	
+				}while(lookup!=EOF);
+			}
+			else //eh um operador de divisao
+			{
+				vet.lexem[i]=lookup;
+				vet.type=OP_div;
+				line++;
+				fseek(arq,-1,SEEK_CUR);
+				return vet;
+			}
+		}
+			
+			
+			
+			
+
 			
 	}// fim while principal
 
@@ -384,12 +452,6 @@ int RWord_find(char lex[])
 		return Rword_for;
 	return -1;
 }
-	
-	
-	
-	
-	
-	
 	
 	
 	
