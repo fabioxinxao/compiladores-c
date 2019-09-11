@@ -46,11 +46,13 @@ typedef struct Token
 Str_token scanner(FILE *arq);
 int RWord_find(char lex[]);
 int OP_Find(char lex[]);
+void initTableSimbols();
 
 //var global
 int line = 1;
 int column = 0;
 char lookup;
+Str_token simbol[30];
 
 
 
@@ -235,7 +237,7 @@ Str_token scanner(FILE *arq) {
 				return vet;
 			}
 		}
-		else if (lookup=='!')//eh um operador relacional, verificar qual
+		else if (lookup=='!')//deve ser operador "diferente"
 		{
 			vet.lexem[i]=lookup;
 			lookup=getc(arq);
@@ -244,14 +246,14 @@ Str_token scanner(FILE *arq) {
 				vet.lexem[i++]='\0';
 				vet.type=OP_diferent;
 				return vet;
-			}
+			}//fim de operador "diferente"
 			else{
 				printf("era esperado o = mas apareceu: '%c' error123,\n",lookup);
 				fclose(arq);
 				exit(1);
 			}
-		}
-		else if (lookup=='=')//pode ser operador aritmetico ou atribuicao
+		}//
+		else if (lookup=='=')//pode ser operador comparacao ou atribuicao
 		{
 			vet.lexem[i]=lookup;
 			lookup=getc(arq);
@@ -267,35 +269,97 @@ Str_token scanner(FILE *arq) {
 				fseek(arq,-1,SEEK_CUR);
 				return vet;
 			}
-		}
+		}//fim de IF comparacao ou atribuicao
 		else if (lookup=='+')//operador de soma
 		{
 			vet.lexem[i]=lookup;
 			vet.lexem[i++]='\0';
 			vet.type=OP_sum;
 			return vet;
-		}
+		}//fim de IF operacao soma
 		else if (lookup=='-')//operador de subtracao
 		{
 			vet.lexem[i]=lookup;
 			vet.lexem[i++]='\0';
 			vet.type=OP_sub;
 			return vet;
-		}
+		}//fim de IF operador subtracao
 		else if (lookup=='*')//operador de multiplicacao
 		{
 			vet.lexem[i]=lookup;
 			vet.lexem[i++]='\0';
 			vet.type=OP_sub;
 			return vet;
-		}
+		}//fim de IF operador multiplicacao
+		else if (lookup=='(')//operador abre parentesis
+		{
+			vet.lexem[i]=lookup;
+			vet.lexem[i++]='\0';
+			vet.type=OP_open_parent;
+			return vet;
+		}//fim de IF operador abre parentesis
+		else if (lookup==')')//operador fecha parantesis
+		{
+			vet.lexem[i]=lookup;
+			vet.lexem[i++]='\0';
+			vet.type=OP_close_parent;
+			return vet;
+		}//fim de IF operador fecha parentesis
+		else if (lookup=='{')//operador abre chave
+		{
+			vet.lexem[i]=lookup;
+			vet.lexem[i++]='\0';
+			vet.type=OP_open_key;
+			return vet;
+		}//fim de IF operador abre chave
+		else if (lookup=='}')//operador fecha chave
+		{
+			vet.lexem[i]=lookup;
+			vet.lexem[i++]='\0';
+			vet.type=OP_close_key;
+			return vet;
+		}//fim de IF operador fecha chave
+		else if (lookup==',')//operador virgula
+		{
+			vet.lexem[i]=lookup;
+			vet.lexem[i++]='\0';
+			vet.type=OP_comma;
+			return vet;
+		}//fim de IF operador virgula
+		else if (lookup==';')//operador ponto virgula
+		{
+			vet.lexem[i]=lookup;
+			vet.lexem[i++]='\0';
+			vet.type=OP_point_virg;
+			return vet;
+		}////fim if de operador ponto virgula
+		else if (lookup==39)//ver se eh uma palavra reservada char
+		{
+			vet.lexem[i]=lookup;
+			lookup=getc(arq);
+			if (isalpha(lookup)){
+				vet.lexem[i++]=lookup;
+				lookup=getc(arq);
+			}
+			if (lookup==39){
+				vet.lexem[i++]=lookup;
+				vet.lexem[i++]='\0';
+				vet.type=Rword_char;
+				return vet;
+			}
+			else{
+				printf("era esperado o ' mas apareceu: '%c' error123,\n",lookup);
+				fclose(arq);
+				exit(1);
+			}
+		}//fim if de palavra reservada char
+		//comecar tratamento de /
+		
 		
 			
-			
-			
-	}
+	}// fim while principal
 
-}
+}//fim do procedimendo scanner
 	
 	
 int RWord_find(char lex[])
