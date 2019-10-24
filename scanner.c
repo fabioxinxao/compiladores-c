@@ -30,9 +30,6 @@
 #define OP_greater_equal 24 
 #define OP_smaller_equal 25
 #define OP_diferent 26
-#define TYPE_int 27
-#define TYPE_float 28
-#define TYPE_char 29
 #define TYPE_ID 30
 #define TAM_LEX 250
 
@@ -40,58 +37,52 @@ typedef struct Token
 {
 	char lexem[TAM_LEX];
 	int type;
-}Str_token;
+}token;
 
 //procedures
-Str_token scanner(FILE *arq);
+token scanner(FILE *arq);
 int RWord_find(char lex[]);
 int OP_Find(char lex[]);
-void initTableSimbols();
 
 //var global
 int line = 1;
 int column = 0;
 char lookup;
-Str_token simbol[30];
+token vetor;
 
 
 
 //main begin
 int main(int argc, char *argv[]){
-    Str_token token;
+    token ultimotoken;
     FILE *arq;
     
-if(argc > 1)
+	if (!(arq=fopen("teste.txt","r")))
 	{
-		if (!(arq=fopen(argv[1],"r")))
-		{
-			printf("Arquivo nao encontrado.\n");
-			exit(1);
-		}
-		while (arq!=EOF){
-			token=scanner(arq);
-			printf("Token Lido:%s - Tipo:%d \n", token.lexem, token.type);
-		}
-		fclose(arq);
-	}else{
-		printf("Deve ser passado arquivo txt para teste.\n");
+		printf("Arquivo nao encontrado.\n");
 		exit(1);
 	}
-
+	while (arq!=EOF)
+	{
+		ultimotoken=scanner(arq);
+		printf("Token Lido: %s <--> Tipo: %d \n", ultimotoken.lexem, ultimotoken.type);
+	}
+	fclose(arq);	
 	return 0;
 }
 
 
-Str_token scanner(FILE *arq) {
+token scanner(FILE *arq) {
 	int i=0;
 	int estado=0;
 	int aceito=0;
 	int column=0;
-	Str_token vet;
+	vetor.lexem[0]='\0';
+	vetor.type=0;
 	static char lookup = ' ';
 	
 	
-	while((lookup=getc(arq))!=EOF)
+	while((lookup=getc(arq))!=EOF)	
 	{
 		if (lookup==' ' || lookup=='\t')//tirar espaços em branco
 			continue;	
@@ -107,7 +98,7 @@ Str_token scanner(FILE *arq) {
 			column++;
 			do
 			{
-				vet.lexem[i]=lookup;
+				vetor.lexem[i]=lookup;
 				i++;
 				lookup=getc(arq);
 				column++;
@@ -115,240 +106,224 @@ Str_token scanner(FILE *arq) {
 				{
 					printf("Erro. tamanho do buffer excedido.\n");
 					fclose(arq);
-					exit(-1);
+					exit(0);
 				}
 			}while(isalpha(lookup) || isdigit(lookup));
-			vet.lexem[i]='\0';
+			vetor.lexem[i]='\0';
 			if(lookup!=EOF)
 				ungetc(lookup,arq);
 			else
 				lookup=0;
-			vet.type=RWord_find(vet.lexem);
-			if(vet.type<0)
-				vet.type=RWord_find(vet.lexem);
-			return vet;
+			vetor.type=RWord_find(vetor.lexem);
+			if(vetor.type==-1)
+				vetor.type=TYPE_ID;
+			return vetor;
 		}//fim identificador ou palavra reservada
 		
-		else if(isdigit(lookup))//inicio "inteiro ou float"
+		else if(isdigit(lookup) || lookup=='.')//int ou float
 		{
-			while(!aceito)//estado de aceitacao
+			while(isdigit(lookup)==0)
+			{	
+				if (isdigit(lookup))
 				{
-					switch(estado){
-					case 0: //sequencia de digitos
-						lookup=getc(arq);
-						if (isdigit(lookup))
-						{
-							vet.lexem[++i]=lookup;
-							column++;
-							estado=0;//continuacao da sequencia de digitos
-						}
-						else if(lookup=='.'){
-							vet.lexem[++i]=lookup;
-							column++;
-							estado=2;//inicio de float
-						}
-						else
-							estado=3;//estado de aceitacao
-							vet.type= Rword_int;
-							column++;
-						break;
-					
-					case 1://iniciando com ponto um ponto definindo "float"
-						lookup=getc(arq);					
-						if (isdigit(lookup))
-						{
-							vet.lexem[++i]=lookup;
-							estado=2;
-						}
-						else if(lookup=='.')
-						{
-							i--;
-							fseek(arq,-1,SEEK_CUR);
-							vet.type= Rword_float;
-							estado=3;//estado de aceitacao
-						}
-						else{
-							printf("Nao se esperava: '%c', float mal formado\n",lookup);
-							estado=-1;//estado de negacao/erro
-						}
-						break;
-					case 2://deve haver pelo menos um digito para completar float
-						lookup=getc(arq);
-						if (isdigit(lookup))
-						{
-							vet.lexem[++i]=lookup;
-							estado=1;
-						}
-						else{
-							printf("Nao se esperava: '%c', float mal formado\n",lookup);
-							estado=-1;
-						}
-						break;
-					case 3://estado de aceitacao
-						if (lookup!=EOF)
-							ungetc(lookup,arq);
-						else
-							lookup=0;
-						vet.lexem[++i]='\0';
-						aceito=1;
-						return vet;
-						break;
-					case -1:
-						if (lookup==EOF)
-						{
-							printf("Nao era esperado o fim de arquivo, error");
-							fclose(arq);
-							exit(1);
-						}
-					}
+					vetor.lexem[i]=lookup;
+					i++;
+					column++;
+					lookup=getc(arq);
+					//continuacao da sequencia de digitos
 				}
-			break;
-		}
+				else if(lookup=='.')
+				{
+					vetor.type=Rword_float;
+					do
+					{
+						vetor.lexem[i]=lookup;
+						i++;
+						column++;
+						lookup=getc(arq);
+					}while(isdigit(lookup)==0);
+					fseek(arq,-1,SEEK_CUR);
+					return vetor;	
+				}
+				else
+				{
+					vetor.type= Rword_int;
+					column++;
+					fseek(arq,-1,SEEK_CUR);
+					return vetor;
+				}
+			}
+			
+		}//fim else if int float
 		else if (lookup=='<')//eh um operador relacional, verificar qual
 		{
-			vet.lexem[i]=lookup;
+			vetor.lexem[i]=lookup;
+			i++;
 			lookup=getc(arq);
 			if (lookup=='='){
-				vet.lexem[i++]=lookup;
-				vet.lexem[i++]='\0';
-				vet.type=OP_smaller_equal;
+				vetor.lexem[i]=lookup;
+				i++;
+				vetor.lexem[i]='\0';
+				vetor.type=OP_smaller_equal;
 				fseek(arq,-1,SEEK_CUR);
-				return vet;
+				return vetor;
 			}
 			else{
-				vet.lexem[i++]='\0';
-				vet.type=OP_minor;
+				vetor.lexem[i++]='\0';
+				vetor.type=OP_minor;
 				fseek(arq,-1,SEEK_CUR);
-				return vet;
+				return vetor;
 			}
 		}
-		
 		else if (lookup=='>')//eh um operador relacional, verificar qual
 		{
-			vet.lexem[i]=lookup;
+			vetor.lexem[i]=lookup;
+			i++;
 			lookup=getc(arq);
-			if (lookup=='='){
-				vet.lexem[i++]=lookup;
-				vet.lexem[i++]='\0';
-				vet.type=OP_greater_equal;
-				return vet;
+			if (lookup=='=')
+			{
+				vetor.lexem[i]=lookup;
+				i++;
+				vetor.lexem[i]='\0';
+				vetor.type=OP_greater_equal;
+				return vetor;
 			}
-			else{
-				vet.lexem[i++]='\0';
-				vet.type=OP_highest;
+			else
+			{
+				vetor.lexem[i++]='\0';
+				vetor.type=OP_highest;
 				fseek(arq,-1,SEEK_CUR);
-				return vet;
+				return vetor;
 			}
 		}
 		else if (lookup=='!')//deve ser operador "diferente"
 		{
-			vet.lexem[i]=lookup;
+			vetor.lexem[i]=lookup;
+			i++;
 			lookup=getc(arq);
-			if (lookup=='='){
-				vet.lexem[i++]=lookup;
-				vet.lexem[i++]='\0';
-				vet.type=OP_diferent;
-				return vet;
+			if (lookup=='=')
+			{
+				vetor.lexem[i]=lookup;
+				i++;
+				vetor.lexem[i]='\0';
+				vetor.type=OP_diferent;
+				return vetor;
 			}//fim de operador "diferente"
-			else{
+			else
+			{
 				printf("era esperado o = mas apareceu: '%c' error123,\n",lookup);
 				fclose(arq);
-				exit(1);
+				exit(0);
 			}
 		}//
-		else if (lookup=='=')//pode ser operador comparacao ou atribuicao
+		else if(lookup == '=')//pode ser operador comparacao ou atribuicao
 		{
-			vet.lexem[i]=lookup;
+			vetor.lexem[i]=lookup;
+			i++;
 			lookup=getc(arq);
-			if (lookup=='='){//eh operador de comparacao
-				vet.lexem[i++]=lookup;
-				vet.lexem[i++]='\0';
-				vet.type=OP_equal;
-				return vet;
+			if (lookup=='=')
+			{//eh operador de comparacao
+				vetor.lexem[i]=lookup;
+				i++;
+				vetor.lexem[i]='\0';
+				vetor.type=OP_equal;
+				return vetor;
 			}
-			else{//eh operador de atribuicao
-				vet.lexem[i++]='\0';
-				vet.type=OP_assignment;
+			else
+			{//eh operador de atribuicao
+				vetor.lexem[i]='\0';
+				vetor.type=OP_assignment;
 				fseek(arq,-1,SEEK_CUR);
-				return vet;
+				return vetor;
 			}
 		}//fim de IF comparacao ou atribuicao
 		else if (lookup=='+')//operador de soma
 		{
-			vet.lexem[i]=lookup;
-			vet.lexem[i++]='\0';
-			vet.type=OP_sum;
-			return vet;
+			vetor.lexem[i]=lookup;
+			i++;
+			vetor.lexem[i]='\0';
+			vetor.type=OP_sum;
+			return vetor;
 		}//fim de IF operacao soma
 		else if (lookup=='-')//operador de subtracao
 		{
-			vet.lexem[i]=lookup;
-			vet.lexem[i++]='\0';
-			vet.type=OP_sub;
-			return vet;
+			vetor.lexem[i]=lookup;
+			i++;
+			vetor.lexem[i]='\0';
+			vetor.type=OP_sub;
+			return vetor;
 		}//fim de IF operador subtracao
 		else if (lookup=='*')//operador de multiplicacao
 		{
-			vet.lexem[i]=lookup;
-			vet.lexem[i++]='\0';
-			vet.type=OP_sub;
-			return vet;
+			vetor.lexem[i]=lookup;
+			i++;
+			vetor.lexem[i]='\0';
+			vetor.type=OP_sub;
+			return vetor;
 		}//fim de IF operador multiplicacao
 		else if (lookup=='(')//operador abre parentesis
 		{
-			vet.lexem[i]=lookup;
-			vet.lexem[i++]='\0';
-			vet.type=OP_open_parent;
-			return vet;
+			vetor.lexem[i]=lookup;
+			i++;
+			vetor.lexem[i]='\0';
+			vetor.type=OP_open_parent;
+			return vetor;
 		}//fim de IF operador abre parentesis
 		else if (lookup==')')//operador fecha parantesis
 		{
-			vet.lexem[i]=lookup;
-			vet.lexem[i++]='\0';
-			vet.type=OP_close_parent;
-			return vet;
+			vetor.lexem[i]=lookup;
+			i++;
+			vetor.lexem[i]='\0';
+			vetor.type=OP_close_parent;
+			return vetor;
 		}//fim de IF operador fecha parentesis
 		else if (lookup=='{')//operador abre chave
 		{
-			vet.lexem[i]=lookup;
-			vet.lexem[i++]='\0';
-			vet.type=OP_open_key;
-			return vet;
+			vetor.lexem[i]=lookup;
+			i++;
+			vetor.lexem[i]='\0';
+			vetor.type=OP_open_key;
+			return vetor;
 		}//fim de IF operador abre chave
 		else if (lookup=='}')//operador fecha chave
 		{
-			vet.lexem[i]=lookup;
-			vet.lexem[i++]='\0';
-			vet.type=OP_close_key;
-			return vet;
+			vetor.lexem[i]=lookup;
+			i++;
+			vetor.lexem[i]='\0';
+			vetor.type=OP_close_key;
+			return vetor;
 		}//fim de IF operador fecha chave
 		else if (lookup==',')//operador virgula
 		{
-			vet.lexem[i]=lookup;
-			vet.lexem[i++]='\0';
-			vet.type=OP_comma;
-			return vet;
+			vetor.lexem[i]=lookup;
+			i++;
+			vetor.lexem[i]='\0';
+			vetor.type=OP_comma;
+			return vetor;
 		}//fim de IF operador virgula
 		else if (lookup==';')//operador ponto virgula
 		{
-			vet.lexem[i]=lookup;
-			vet.lexem[i++]='\0';
-			vet.type=OP_point_virg;
-			return vet;
+			vetor.lexem[i]=lookup;
+			i++;
+			vetor.lexem[i]='\0';
+			vetor.type=OP_point_virg;
+			return vetor;
 		}////fim if de operador ponto virgula
 		else if (lookup==39)//ver se eh uma palavra reservada char
 		{
-			vet.lexem[i]=lookup;
+			vetor.lexem[i]=lookup;
 			lookup=getc(arq);
 			if (isalpha(lookup)){
-				vet.lexem[i++]=lookup;
+				vetor.lexem[i]=lookup;
+				i++;
 				lookup=getc(arq);
 			}
 			if (lookup==39){
-				vet.lexem[i++]=lookup;
-				vet.lexem[i++]='\0';
-				vet.type=Rword_char;
-				return vet;
+				vetor.lexem[i]=lookup;
+				i++;
+				vetor.lexem[i]='\0';
+				vetor.type=Rword_char;
+				return vetor;
 			}
 			else{
 				printf("era esperado o ' mas apareceu: '%c' error123,\n",lookup);
@@ -387,7 +362,7 @@ Str_token scanner(FILE *arq) {
 						lookup=getc(arq);
 						if(lookup='/')
 						{
-							line++
+							line++;
 							break;
 						}
 						else if(lookup==EOF)
@@ -401,7 +376,7 @@ Str_token scanner(FILE *arq) {
 					{
 							printf("Chegou ao fim de arquivo em um comentario");
 							fclose(arq);
-							exit(1);
+							exit(0);
 					}
 					else
 					{
@@ -412,12 +387,18 @@ Str_token scanner(FILE *arq) {
 			}
 			else //eh um operador de divisao
 			{
-				vet.lexem[i]=lookup;
-				vet.type=OP_div;
+				vetor.lexem[i]=lookup;
+				vetor.type=OP_div;
 				line++;
 				fseek(arq,-1,SEEK_CUR);
-				return vet;
+				return vetor;
 			}
+		}
+		else
+		{
+			printf("character %c invalido, localizado na linha: %d e coluna: %d", lookup,line,column);
+			fclose(arq);
+			exit(0);
 		}
 			
 			
@@ -452,8 +433,5 @@ int RWord_find(char lex[])
 		return Rword_for;
 	return -1;
 }
-	
-	
-	
 	
 	
